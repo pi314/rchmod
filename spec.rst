@@ -34,7 +34,7 @@ Output Format
 -   normal processing
 
     <color>[XX%]</color>[aaa->bbb] filename
-    color: cyan for file, green for directory
+    color: cyan for directory, green for file
 
 -   for command line ``--test``
 
