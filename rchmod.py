@@ -14,6 +14,25 @@ dir_rules = [
         ('d',  755 , r'^.*$'),
     ]
 
+def gen_item_list (rootdir):
+    result = []
+    for i in os.walk(rootdir):
+        result.append( ('d', oct(os.lstat(i[0]).st_mode & 0777)[1:], i[0]) )
+        if i[2] != []:
+            for f in i[2]:
+                result.append(
+                    (   'f',
+                        oct(os.lstat(i[0]+'/'+f).st_mode & 0777)[1:],
+                        i[0] + '/' + f)
+                    )
+    return result
+    
+def test (rootdir):
+    item_list = gen_item_list(rootdir)
+    for i in item_list:
+        print(i)
+    print(len(item_list))
+
 def show_rules ():
     global file_rules
     global dir_rules
@@ -73,19 +92,24 @@ def main ():
                         help='List items match the rule and exit',
                         )
 
+    parser.add_argument('--no-prograss',
+                        help="Don't calculate total item amount",
+                        action='store_true')
+
     args = parser.parse_args()
 
     print(sys.argv)
     print(args)
-    print('rootdir:',    args.rootdir)
-    print('rule:',       args.rule)
-    print('show_rules:', args.show_rules)
-    print('interact:',   args.interact)
-    print('test:',       args.test)
+    print('rootdir:',     args.rootdir)
+    print('rule:',        args.rule)
+    print('show_rules:',  args.show_rules)
+    print('interact:',    args.interact)
+    print('test:',        args.test)
+    print('no_prograss:', args.no_prograss)
     print('')
 
     if args.test:
-        print('test mode')
+        test(args.test)
     elif args.show_rules:
         show_rules()
         exit()

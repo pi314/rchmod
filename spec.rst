@@ -18,6 +18,9 @@ rchmod [-i|--interact] rootdir
 # List the files/directories need to be processed and exit
 rchmod --test rootdir
 
+# Don't caculate total item amount
+rchmod --no-prograss
+
 Rule File Format
 ----------------
 #comment
