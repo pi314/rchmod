@@ -2,36 +2,89 @@ from __future__ import print_function
 import argparse
 import sys
 import os
+import re
 
 file_rules = [
-        (755, r'^.*\.sh$'),
-        (755, r'^.*\.exe$'),
-        (644, r'^.*$'),
+        ('755', r'^.*\.sh$'),
+        ('755', r'^.*\.exe$'),
+        ('ign', r'^\..*$'),
+        ('644', r'^.*$'),
     ]
 dir_rules = [
-        ('h', 'ign', r'^.*\.git$'),
-        ('d', 'ign', r'^.*\.git$'),
-        ('d',  755 , r'^.*$'),
+        ('h', 'ign', r'^\.git$'),
+        ('d', 'ign', r'^\.git$'),
+        ('d', 'ign', r'^\.ssh$'),
+        ('d', 'ign', r'^\..*$'),
+        ('d', '755', r'^.*$'),
     ]
 
-def gen_item_list (rootdir):
-    result = []
-    for i in os.walk(rootdir):
-        result.append( ('d', oct(os.lstat(i[0]).st_mode & 0777)[1:], i[0]) )
-        if i[2] != []:
-            for f in i[2]:
-                result.append(
-                    (   'f',
-                        oct(os.lstat(i[0]+'/'+f).st_mode & 0777)[1:],
-                        i[0] + '/' + f)
-                    )
-    return result
+def get_dir_action (perm, dir_name, sub_dirs, files):
+    for r in dir_rules:
+        if r[0] == 'h':
+            for sd in sub_dirs:
+                if re.match(r[2], sd):
+                    return r[1]
+        elif r[0] == 'd':
+            if re.match(r[2], dir_name):
+                return r[1]
+
+def removed_sub_dirs (dir_name, sub_dirs):
+    pending_list = []
+    for sd in sub_dirs:
+        for r in filter(lambda i:i[0] == 'd' and i[1] == 'ign', dir_rules):
+            if re.match(r[2], sd):
+                pending_list.append(sd)
+                break
+
+    for i in pending_list:
+        sub_dirs.remove(i)
+        for ign_dir_name, ign_sub_dirs, ign_files in os.walk(dir_name + '/' + i):
+            yield ('ign', 'd', '***', ign_dir_name)
+            for i in ign_files:
+                yield ('ign', 'f', '***', ign_dir_name + '/' + i)
+
+def get_file_action (perm, file_name):
+    for r in file_rules:
+        if re.match(r[1], file_name):
+            return r[0]
+
+def gen_items (rootdir):
+    for dir_name, sub_dirs, files in os.walk(rootdir):
+        perm = oct(os.lstat(dir_name).st_mode & 0777)[1:]
+
+        action = get_dir_action(perm, dir_name, sub_dirs, files)
+
+        if action == 'ign':
+            del sub_dirs[:]
+            for ign_dir_name, ign_sub_dirs, ign_files in os.walk(dir_name):
+                yield ('ign', 'd', '***', ign_dir_name)
+                for i in ign_files:
+                    yield ('ign', 'f', '***', ign_dir_name + '/' + i)
+        else:
+            #result.append( (action, 'd', perm, dir_name) )
+            yield (action, 'd', perm, dir_name)
+
+            for i in removed_sub_dirs(dir_name, sub_dirs):
+                yield i
+
+            for f in files:
+                file_name = dir_name + '/' + f
+                perm = oct(os.lstat(file_name).st_mode & 0777)[1:]
+                action = get_file_action(perm, file_name)
+
+                #result.append(
+                #    (   action,
+                #        'f',
+                #        perm,
+                #        file_name)
+                #    )
+                yield (action, 'f', perm, file_name)
     
 def test (rootdir):
-    item_list = gen_item_list(rootdir)
+    item_list = gen_items(rootdir)
     for i in item_list:
         print(i)
-    print(len(item_list))
+    #print(len(item_list))
 
 def show_rules ():
     global file_rules
