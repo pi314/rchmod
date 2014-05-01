@@ -28,25 +28,25 @@ def get_dir_action (perm, dir_name, sub_dirs, files):
             if re.match(r[2], dir_name):
                 return r[1]
 
-def removed_sub_dirs (dir_name, sub_dirs):
-    pending_list = []
-    for sd in sub_dirs:
-        for r in filter(lambda i:i[0] == 'd' and i[1] == 'ign', dir_rules):
-            if re.match(r[2], sd):
-                pending_list.append(sd)
-                break
-
-    for i in pending_list:
-        sub_dirs.remove(i)
-        for ign_dir_name, ign_sub_dirs, ign_files in os.walk(dir_name + '/' + i):
-            yield ('ign', 'd', '***', ign_dir_name)
-            for i in ign_files:
-                yield ('ign', 'f', '***', ign_dir_name + '/' + i)
-
 def get_file_action (perm, file_name):
     for r in file_rules:
         if re.match(r[1], file_name):
             return r[0]
+
+def ignore_tree (root_dir):
+    for dir_name, sd, files in os.walk(root_dir):
+        yield ('ign', 'd', '***', dir_name)
+        for f in files:
+            yield ('ign', 'f', '***', dir_name + '/' + f)
+
+def get_ignore_sub_dirs_list (dir_name, sub_dirs):
+    result = []
+    for sd in sub_dirs:
+        for r in filter(lambda x:x[0]=='d' and x[1]=='ign', dir_rules):
+            if re.match(r[2], sd):
+                result.append(sd)
+                break
+    return result
 
 def gen_items (rootdir):
     for dir_name, sub_dirs, files in os.walk(rootdir):
@@ -55,17 +55,20 @@ def gen_items (rootdir):
         action = get_dir_action(perm, dir_name, sub_dirs, files)
 
         if action == 'ign':
+            for i in ignore_tree(dir_name):
+                yield i
             del sub_dirs[:]
-            for ign_dir_name, ign_sub_dirs, ign_files in os.walk(dir_name):
-                yield ('ign', 'd', '***', ign_dir_name)
-                for i in ign_files:
-                    yield ('ign', 'f', '***', ign_dir_name + '/' + i)
         else:
-            #result.append( (action, 'd', perm, dir_name) )
             yield (action, 'd', perm, dir_name)
 
-            for i in removed_sub_dirs(dir_name, sub_dirs):
-                yield i
+            ign_sub_dir_list = get_ignore_sub_dirs_list(dir_name, sub_dirs)
+
+            for i in ign_sub_dir_list:
+                for j in ignore_tree(dir_name + '/' + i):
+                    yield j
+
+            for i in ign_sub_dir_list:
+                sub_dirs.remove(i)
 
             for f in files:
                 file_name = dir_name + '/' + f
