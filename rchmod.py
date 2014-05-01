@@ -49,8 +49,6 @@ def get_ignore_sub_dirs_list (dir_name, sub_dirs):
     return result
 
 def gen_items (rootdir, verbose=False, trim=True):
-    verbose=False
-    trim = True
     for dir_name, sub_dirs, files in os.walk(rootdir):
         perm = oct(os.lstat(dir_name).st_mode & 0777)[1:]
 
