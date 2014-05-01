@@ -56,8 +56,4 @@ filter(function, sequence)
 
 sum(1 for i in gen)
 
-Dynamically add new rules may be needed,
-or I need to parse the rule to use
-^.*\.git$
-on
-.../.git/...
+links should be always skiped
