@@ -35,9 +35,11 @@ def get_file_action (perm, file_name):
 
 def ignore_tree (root_dir):
     for dir_name, sd, files in os.walk(root_dir):
-        yield ('ign', 'd', '***', dir_name)
+        perm = oct(os.lstat(dir_name).st_mode & 0777)[1:]
+        yield ('ign', 'd', perm, dir_name)
         for f in files:
-            yield ('ign', 'f', '***', dir_name + '/' + f)
+            perm = oct(os.lstat(dir_name+'/'+f).st_mode & 0777)[1:]
+            yield ('ign', 'f', perm, dir_name + '/' + f)
 
 def get_ignore_sub_dirs_list (dir_name, sub_dirs):
     result = []
@@ -90,8 +92,13 @@ def gen_items (rootdir, verbose=False, trim=True):
 def test (rootdir):
     item_list = gen_items(rootdir, verbose=True, trim=False)
     for i in item_list:
-        print(i)
-    #print(len(item_list))
+        if i[0] == 'ign':
+            print( '\033[1;35m[ignore][{}->   ] {}\033[m'.format(i[2], i[3]) )
+        elif i[0] == i[2]:
+            print( '\033[1;30m[ skip ][{}->{}]\033[m {}'.format(i[2], i[0], i[3]) )
+        else:
+            print( '\033[1;32m[match ][{}->{}]\033[m {}'.format(i[2], i[0], i[3]) )
+    print(len(item_list))
 
 def show_rules ():
     global file_rules
