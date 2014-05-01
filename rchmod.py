@@ -48,24 +48,29 @@ def get_ignore_sub_dirs_list (dir_name, sub_dirs):
                 break
     return result
 
-def gen_items (rootdir):
+def gen_items (rootdir, verbose=False, trim=True):
+    verbose=False
+    trim = True
     for dir_name, sub_dirs, files in os.walk(rootdir):
         perm = oct(os.lstat(dir_name).st_mode & 0777)[1:]
 
         action = get_dir_action(perm, dir_name, sub_dirs, files)
 
         if action == 'ign':
-            for i in ignore_tree(dir_name):
-                yield i
+            if verbose:
+                for i in ignore_tree(dir_name):
+                    yield i
             del sub_dirs[:]
         else:
-            yield (action, 'd', perm, dir_name)
+            if action != perm or not trim:
+                yield (action, 'd', perm, dir_name)
 
             ign_sub_dir_list = get_ignore_sub_dirs_list(dir_name, sub_dirs)
 
-            for i in ign_sub_dir_list:
-                for j in ignore_tree(dir_name + '/' + i):
-                    yield j
+            if verbose:
+                for i in ign_sub_dir_list:
+                    for j in ignore_tree(dir_name + '/' + i):
+                        yield j
 
             for i in ign_sub_dir_list:
                 sub_dirs.remove(i)
@@ -81,10 +86,11 @@ def gen_items (rootdir):
                 #        perm,
                 #        file_name)
                 #    )
-                yield (action, 'f', perm, file_name)
+                if action != perm or not trim:
+                    yield (action, 'f', perm, file_name)
     
 def test (rootdir):
-    item_list = gen_items(rootdir)
+    item_list = gen_items(rootdir, verbose=True, trim=False)
     for i in item_list:
         print(i)
     #print(len(item_list))
