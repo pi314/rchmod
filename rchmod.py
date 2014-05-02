@@ -60,7 +60,7 @@ def get_ignore_sub_dirs_list (sub_dirs):
                 break
     return result
 
-def gen_items (rootdir, verbose=False, trim=True):
+def gen_items (rootdir, verbose=False):
     for dir_path, sub_dirs, files in os.walk(rootdir):
         perm = oct(os.lstat(dir_path).st_mode & 0777)[1:]
 
@@ -72,7 +72,7 @@ def gen_items (rootdir, verbose=False, trim=True):
                     yield i
             del sub_dirs[:]
         else:
-            if action != perm or not trim:
+            if action == perm and verbose:
                 yield (action, 'd', perm, dir_path)
 
             ign_sub_dir_list = get_ignore_sub_dirs_list(sub_dirs)
@@ -89,27 +89,13 @@ def gen_items (rootdir, verbose=False, trim=True):
                 perm = oct(os.lstat(dir_path + '/' + file_name).st_mode & 0777)[1:]
                 action = get_file_action(perm, dir_path, file_name)
 
-                #result.append(
-                #    (   action,
-                #        'f',
-                #        perm,
-                #        file_name)
-                #    )
                 output = False
-                if action == 'ign':
-                    if verbose:
-                        output = True
-                elif action == perm:
-                    if not trim:
-                        output = True
-                else:
-                    output = True
 
-                if output:
+                if (action != 'ign' and action != perm) or verbose:
                     yield (action, 'f', perm, dir_path + '/' + file_name)
-    
+
 def test (rootdir):
-    item_list = gen_items(rootdir, verbose=True, trim=False)
+    item_list = gen_items(rootdir, verbose=True)
     if sys.stdout.isatty():
         for i in item_list:
             #(action, 'f', perm, file_name)
@@ -129,13 +115,13 @@ def test (rootdir):
                 print( '[match ][{}->{}] {}'.format(i[2], i[0], i[3]) )
 
 def clean_permission (rootdir):
-    item_list = list( gen_items(rootdir, verbose=False, trim=True) )
+    item_list = list( gen_items(rootdir, verbose=False) )
     total_amount = len(item_list)
-    print(total_amount)
     #if sys.stdout.isatty():
     for i in item_list:
         print( '\033[1;32m[match ][{}->{}]\033[m {}'.format(i[2], i[0], i[3]) )
-            
+    print(total_amount)
+
     #(action, 'f', perm, file_name)
     #else:
     #os.chmod( item, int('755', 8) )
@@ -175,7 +161,6 @@ def show_rules ():
 
     for i in dir_rules:
         print( '{} {} {}'.format(i[0], i[1], i[2]) )
-        
 
 def main ():
     parser = argparse.ArgumentParser()
