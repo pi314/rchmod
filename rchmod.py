@@ -18,30 +18,40 @@ dir_rules = [
         ('d', '755', r'^.*$'),
     ]
 
-def get_dir_action (perm, dir_name, sub_dirs, files):
+def get_dir_action (perm, dir_path, sub_dirs, files):
+
+    # skip symbolic links
+    if os.path.islink(dir_path):
+        return 'ign'
+
     for r in dir_rules:
         if r[0] == 'h':
             for sd in sub_dirs:
                 if re.match(r[2], sd):
                     return r[1]
         elif r[0] == 'd':
-            if re.match(r[2], dir_name):
+            if re.match(r[2], dir_path.split('/')[-1]):
                 return r[1]
 
-def get_file_action (perm, file_name):
+def get_file_action (perm, dir_path, file_name):
+
+    # skip symbolic links
+    if os.path.islink(dir_path + '/' + file_name):
+        return 'ign'
+
     for r in file_rules:
         if re.match(r[1], file_name):
             return r[0]
 
 def ignore_tree (root_dir):
-    for dir_name, sd, files in os.walk(root_dir):
-        perm = oct(os.lstat(dir_name).st_mode & 0777)[1:]
-        yield ('ign', 'd', perm, dir_name)
+    for dir_path, sd, files in os.walk(root_dir):
+        perm = oct(os.lstat(dir_path).st_mode & 0777)[1:]
+        yield ('ign', 'd', perm, dir_path)
         for f in files:
-            perm = oct(os.lstat(dir_name+'/'+f).st_mode & 0777)[1:]
-            yield ('ign', 'f', perm, dir_name + '/' + f)
+            perm = oct(os.lstat(dir_path+'/'+f).st_mode & 0777)[1:]
+            yield ('ign', 'f', perm, dir_path + '/' + f)
 
-def get_ignore_sub_dirs_list (dir_name, sub_dirs):
+def get_ignore_sub_dirs_list (sub_dirs):
     result = []
     for sd in sub_dirs:
         for r in filter(lambda x:x[0]=='d' and x[1]=='ign', dir_rules):
@@ -51,34 +61,33 @@ def get_ignore_sub_dirs_list (dir_name, sub_dirs):
     return result
 
 def gen_items (rootdir, verbose=False, trim=True):
-    for dir_name, sub_dirs, files in os.walk(rootdir):
-        perm = oct(os.lstat(dir_name).st_mode & 0777)[1:]
+    for dir_path, sub_dirs, files in os.walk(rootdir):
+        perm = oct(os.lstat(dir_path).st_mode & 0777)[1:]
 
-        action = get_dir_action(perm, dir_name, sub_dirs, files)
+        action = get_dir_action(perm, dir_path, sub_dirs, files)
 
         if action == 'ign':
             if verbose:
-                for i in ignore_tree(dir_name):
+                for i in ignore_tree(dir_path):
                     yield i
             del sub_dirs[:]
         else:
             if action != perm or not trim:
-                yield (action, 'd', perm, dir_name)
+                yield (action, 'd', perm, dir_path)
 
-            ign_sub_dir_list = get_ignore_sub_dirs_list(dir_name, sub_dirs)
+            ign_sub_dir_list = get_ignore_sub_dirs_list(sub_dirs)
 
             if verbose:
                 for i in ign_sub_dir_list:
-                    for j in ignore_tree(dir_name + '/' + i):
+                    for j in ignore_tree(dir_path + '/' + i):
                         yield j
 
             for i in ign_sub_dir_list:
                 sub_dirs.remove(i)
 
-            for f in files:
-                file_name = dir_name + '/' + f
-                perm = oct(os.lstat(file_name).st_mode & 0777)[1:]
-                action = get_file_action(perm, file_name)
+            for file_name in files:
+                perm = oct(os.lstat(dir_path + '/' + file_name).st_mode & 0777)[1:]
+                action = get_file_action(perm, dir_path, file_name)
 
                 #result.append(
                 #    (   action,
@@ -86,19 +95,52 @@ def gen_items (rootdir, verbose=False, trim=True):
                 #        perm,
                 #        file_name)
                 #    )
-                if action != perm or not trim:
-                    yield (action, 'f', perm, file_name)
+                output = False
+                if action == 'ign':
+                    if verbose:
+                        output = True
+                elif action == perm:
+                    if not trim:
+                        output = True
+                else:
+                    output = True
+
+                if output:
+                    yield (action, 'f', perm, dir_path + '/' + file_name)
     
 def test (rootdir):
     item_list = gen_items(rootdir, verbose=True, trim=False)
+    if sys.stdout.isatty():
+        for i in item_list:
+            #(action, 'f', perm, file_name)
+            if i[0] == 'ign':
+                print( '\033[1;35m[ignore][{}->   ] {}\033[m'.format(i[2], i[3]) )
+            elif i[0] == i[2]:
+                print( '\033[1;30m[ skip ][{}->{}]\033[m {}'.format(i[2], i[0], i[3]) )
+            else:
+                print( '\033[1;32m[match ][{}->{}]\033[m {}'.format(i[2], i[0], i[3]) )
+    else:
+        for i in item_list:
+            if i[0] == 'ign':
+                print( '[ignore][{}->   ] {}'.format(i[2], i[3]) )
+            elif i[0] == i[2]:
+                print( '[ skip ][{}->{}] {}'.format(i[2], i[0], i[3]) )
+            else:
+                print( '[match ][{}->{}] {}'.format(i[2], i[0], i[3]) )
+
+def clean_permission (rootdir):
+    item_list = list( gen_items(rootdir, verbose=False, trim=True) )
+    total_amount = len(item_list)
+    print(total_amount)
+    #if sys.stdout.isatty():
     for i in item_list:
-        if i[0] == 'ign':
-            print( '\033[1;35m[ignore][{}->   ] {}\033[m'.format(i[2], i[3]) )
-        elif i[0] == i[2]:
-            print( '\033[1;30m[ skip ][{}->{}]\033[m {}'.format(i[2], i[0], i[3]) )
-        else:
-            print( '\033[1;32m[match ][{}->{}]\033[m {}'.format(i[2], i[0], i[3]) )
-    print(len(item_list))
+        print( '\033[1;32m[match ][{}->{}]\033[m {}'.format(i[2], i[0], i[3]) )
+            
+    #(action, 'f', perm, file_name)
+    #else:
+    #os.chmod( item, int('755', 8) )
+    #print(len(item_list))
+    pass
 
 def show_rules ():
     global file_rules
@@ -179,7 +221,8 @@ def main ():
         test(args.test)
     elif args.show_rules:
         show_rules()
-        exit()
+    else:
+        clean_permission(args.rootdir)
 
 if __name__ == '__main__':
     main()
