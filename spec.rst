@@ -16,7 +16,8 @@ rchmod --show-rules
 rchmod [-i|--interact] rootdir
 
 # List the files/directories need to be processed and exit
-rchmod --test rootdir
+rchmod --list-all   rootdir
+rchmod --list-match rootdir
 
 # Don't caculate total item amount
 rchmod --no-prograss

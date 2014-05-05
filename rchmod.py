@@ -94,8 +94,8 @@ def gen_items (rootdir, verbose=False):
                 if (action != 'ign' and action != perm) or verbose:
                     yield (action, 'f', perm, dir_path + '/' + file_name)
 
-def test (rootdir):
-    item_list = gen_items(rootdir, verbose=True)
+def test (rootdir, verbose=True):
+    item_list = gen_items(rootdir, verbose)
     if sys.stdout.isatty():
         for i in item_list:
             #(action, 'f', perm, file_name)
@@ -181,9 +181,14 @@ def main ():
                         help='Confirm every files and directories',
                         action='store_true')
 
-    parser.add_argument('--test',
+    parser.add_argument('--list-all',
                         metavar='rootdir',
-                        help='List items match the rule and exit',
+                        help='List all items and their actions and exit',
+                        )
+
+    parser.add_argument('--list-match',
+                        metavar='rootdir',
+                        help='List matched items and exit',
                         )
 
     parser.add_argument('--no-prograss',
@@ -198,16 +203,22 @@ def main ():
     print('rule:',        args.rule)
     print('show_rules:',  args.show_rules)
     print('interact:',    args.interact)
-    print('test:',        args.test)
+    print('list_all:',    args.list_all)
+    print('list_match:',  args.list_match)
     print('no_prograss:', args.no_prograss)
     print('')
 
-    if args.test:
-        test(args.test)
+    if args.list_all:
+        test(args.list_all, verbose=True)
+    elif args.list_match:
+        test(args.list_match, verbose=False)
     elif args.show_rules:
         show_rules()
     else:
-        clean_permission(args.rootdir)
+        if not args.rootdir:
+            print('rootdir is needed')
+        else:
+            clean_permission(args.rootdir)
 
 if __name__ == '__main__':
     main()
