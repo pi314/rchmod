@@ -18,6 +18,10 @@ dir_rules = [
         ('d', '755', r'^.*$'),
     ]
 
+rule_format = r'^([fdh]) (\d\d\d|ign) (\^.*\$)$'
+rule_matcher = re.compile(rule_format)
+
+
 def get_dir_action (perm, dir_path, sub_dirs, files):
 
     # skip symbolic links
@@ -32,6 +36,7 @@ def get_dir_action (perm, dir_path, sub_dirs, files):
         elif r[0] == 'd':
             if re.match(r[2], dir_path.split('/')[-1]):
                 return r[1]
+    return 'non'
 
 def get_file_action (perm, dir_path, file_name):
 
@@ -42,6 +47,7 @@ def get_file_action (perm, dir_path, file_name):
     for r in file_rules:
         if re.match(r[1], file_name):
             return r[0]
+    return 'non'
 
 def ignore_tree (root_dir):
     for dir_path, sd, files in os.walk(root_dir):
@@ -66,7 +72,7 @@ def gen_items (rootdir, verbose=False):
 
         action = get_dir_action(perm, dir_path, sub_dirs, files)
 
-        if action == 'ign':
+        if action == 'ign' or action == 'non':
             if verbose:
                 for i in ignore_tree(dir_path):
                     yield i
@@ -101,6 +107,8 @@ def test (rootdir, verbose=True):
             #(action, 'f', perm, file_name)
             if i[0] == 'ign':
                 print( '\033[1;35m[ignore][{}->   ] {}\033[m'.format(i[2], i[3]) )
+            elif i[0] == 'non':
+                print( '\033[1;35m[unknow][{}->   ] {}\033[m'.format(i[2], i[3]) )
             elif i[0] == i[2]:
                 print( '\033[1;30m[ skip ][{}->{}]\033[m {}'.format(i[2], i[0], i[3]) )
             else:
@@ -109,6 +117,8 @@ def test (rootdir, verbose=True):
         for i in item_list:
             if i[0] == 'ign':
                 print( '[ignore][{}->   ] {}'.format(i[2], i[3]) )
+            if i[0] == 'non':
+                print( '[unknow][{}->   ] {}'.format(i[2], i[3]) )
             elif i[0] == i[2]:
                 print( '[ skip ][{}->{}] {}'.format(i[2], i[0], i[3]) )
             else:
@@ -120,13 +130,66 @@ def clean_permission (rootdir):
     #if sys.stdout.isatty():
     for i in item_list:
         print( '\033[1;32m[match ][{}->{}]\033[m {}'.format(i[2], i[0], i[3]) )
-    print(total_amount)
+    print("Total:", total_amount)
 
     #(action, 'f', perm, file_name)
     #else:
     #os.chmod( item, int('755', 8) )
     #print(len(item_list))
     pass
+
+def parse_rule_format (line):
+    match_result = rule_matcher.match(line)
+    if match_result:
+        return match_result.group(1), match_result.group(2), match_result.group(3)
+    else:
+        if line != "" and line[0] != '#':
+            print('\033[1;33mRule format incorrect:\033[m', line)
+        return None, None, None
+
+def check_and_warn_default_rule (rule_file):
+    global file_rules
+    global dir_rules
+    
+    if '^.*$' not in [i[1] for i in file_rules]:
+        print('\033[1;33m=================================================================\033[m')
+        print('\033[1;33mFriendly warning:\033[m')
+        print('\033[1;33m  Your rule file has no default rule for files like "^.*$".\033[m')
+        print('\033[1;33m  There may be files that doesn\'t match any rule.\033[m')
+        print('\033[1;33m=================================================================\033[m')
+        print('Press enter to continue.')
+        raw_input()
+
+    if '^.*$' not in [i[2] for i in dir_rules]:
+        print('\033[1;33m=================================================================\033[m')
+        print('\033[1;33mFriendly warning:\033[m')
+        print('\033[1;33m  Your rule file has no default rule for directories like "^.*$".\033[m')
+        print('\033[1;33m  There may be directories that doesn\'t match any rule.\033[m')
+        print('\033[1;33m=================================================================\033[m')
+        print('Press enter to continue.')
+        raw_input()
+
+def import_rule_file (rule_file):
+    global file_rules
+    global dir_rules
+
+    file_rules = []
+    dir_rules  = []
+
+    print("Parsing rule file:", rule_file)
+
+    with open(rule_file) as rf:
+        for line in rf:
+            rule_type, rule_action, rule_content = parse_rule_format(line.strip())
+            if rule_type == 'f':
+                file_rules.append( (rule_action, rule_content) )
+            elif rule_type == 'd' or rule_type == 'h':
+                dir_rules.append( (rule_type, rule_action, rule_content) )
+
+    check_and_warn_default_rule(rule_file)
+    print("Parsing Done.\n")
+    show_rules()
+    print("")
 
 def show_rules ():
     global file_rules
@@ -169,7 +232,7 @@ def main ():
                         help='The root directory of processing',
                         nargs='?')
 
-    parser.add_argument('--rule',
+    parser.add_argument('--rule', '--rule-file',
                         help='Import rule file',
                         )
 
@@ -207,6 +270,9 @@ def main ():
     print('list_match:',  args.list_match)
     print('no_prograss:', args.no_prograss)
     print('')
+
+    if args.rule:
+        import_rule_file(args.rule)
 
     if args.list_all:
         test(args.list_all, verbose=True)
