@@ -45,7 +45,7 @@ def get_file_action (perm, dir_path, file_name):
         return 'ign'
 
     for r in file_rules:
-        if re.match(r[1], file_name):
+        if re.match(r[-1], file_name):
             return r[0]
     return 'non'
 
@@ -151,7 +151,7 @@ def check_and_warn_default_rule (rule_file):
     global file_rules
     global dir_rules
     
-    if '^.*$' not in [i[1] for i in file_rules]:
+    if '^.*$' not in [i[-1] for i in file_rules]:
         print('\033[1;33m=================================================================\033[m')
         print('\033[1;33mFriendly warning:\033[m')
         print('\033[1;33m  Your rule file has no default rule for files like "^.*$".\033[m')
@@ -160,7 +160,7 @@ def check_and_warn_default_rule (rule_file):
         print('Press enter to continue.')
         raw_input()
 
-    if '^.*$' not in [i[2] for i in dir_rules]:
+    if '^.*$' not in [i[-1] for i in dir_rules]:
         print('\033[1;33m=================================================================\033[m')
         print('\033[1;33mFriendly warning:\033[m')
         print('\033[1;33m  Your rule file has no default rule for directories like "^.*$".\033[m')
@@ -191,31 +191,63 @@ def import_rule_file (rule_file):
     show_rules()
     print("")
 
+def gen_rule_zip ():
+    global file_rules
+    global dir_rules
+
+    file_rules_line = ['File rules:'] +\
+        ['{} for {}'.format(i[0], i[-1]) for i in file_rules]
+
+    dir_rules_line  = ['Directory rules:'] +\
+        ['{} which {} {}'.format(
+            (lambda x: 'ignore' if x=='ign' else x+'   ')(i[1]),
+            (lambda x: 'has    ' if x=='h' else 'matches')(i[0]),
+            i[-1]) for i in dir_rules]
+
+    file_rules_len = len(file_rules)
+    dir_rules_len  = len(dir_rules)
+
+    file_rules_block_width = max([len(i) for i in file_rules_line])
+    dir_rules_block_width  = max([len(i) for i in dir_rules_line])
+
+    if file_rules_len >= dir_rules_len:
+        dir_rules_line += ['']*(file_rules_len - dir_rules_len)
+    else:
+        file_rules_line += ['']*(dir_rules_len - file_rules_len)
+
+    file_rules_line = map(lambda x:x.ljust(file_rules_block_width),
+        file_rules_line)
+    dir_rules_line = map(lambda x:x.ljust(dir_rules_block_width),
+        dir_rules_line)
+
+    return file_rules_block_width, dir_rules_block_width, zip(file_rules_line, dir_rules_line)
+
 def show_rules ():
     global file_rules
     global dir_rules
 
-    print('File rules:')
-    for i in file_rules:
-        print(i[0], 'for', i[1])
+    file_rules_block_width, dir_rules_block_width, block_lines = gen_rule_zip()
 
-    print('')
+    table_top_line = '+' +\
+        '-' * (file_rules_block_width + 2) +\
+        '+' +\
+        '-' * (dir_rules_block_width + 2) +\
+        '+'
 
-    print('Directory rules:')
-    for i in dir_rules:
-        if i[1] == 'ign':
-            action_str = 'ignore'
-        else:
-            action_str = '{}   '.format(i[1])
+    print('Current rules:')
+    # table top line
+    print(table_top_line)
 
-        if i[0] == 'h':
-            has_str = 'which has    '
-        else:
-            has_str = 'which matches'
+    print( '| ' + block_lines[0][0] + ' | ' + block_lines[0][1] + ' |')
 
-        print(action_str, has_str, i[2])
+    # table head line
+    print(table_top_line)
 
-    print('')
+    for i in block_lines[1:]:
+        print('| {} | {} |'.format(i[0], i[1]).replace('^', '\033[1;32m^').replace('$', '$\033[m'))
+
+    # table bottom line
+    print(table_top_line)
 
     print('Rule file format:')
 
