@@ -21,6 +21,7 @@ dir_rules = [
 rule_format = r'^([fdh]) (\d\d\d|ign) (\^.*\$)$'
 rule_matcher = re.compile(rule_format)
 
+locked_dirs = []
 
 def get_dir_action (perm, dir_path, sub_dirs, files):
 
@@ -67,6 +68,8 @@ def get_ignore_sub_dirs_list (sub_dirs):
     return result
 
 def gen_items (rootdir, verbose=False):
+    global locked_dirs
+
     for dir_path, sub_dirs, files in os.walk(rootdir):
         perm = oct(os.lstat(dir_path).st_mode & 0777).rjust(4, '0')[1:]
 
@@ -90,6 +93,15 @@ def gen_items (rootdir, verbose=False):
 
             for i in ign_sub_dir_list:
                 sub_dirs.remove(i)
+
+            # may have problem to walk
+            for i in sub_dirs:
+                perm = oct(os.lstat(dir_path + '/' + i).st_mode & 0777).rjust(4, '0')[1:]
+                if re.match(r'^.*[0123].*$', perm):
+                    locked_dirs.append(
+                        '[{perm}] {itemname}'.format(
+                        perm=perm,
+                        itemname=dir_path+'/'+i) )
 
             for file_name in files:
                 perm = oct(os.lstat(dir_path + '/' + file_name).st_mode & 0777).rjust(4, '0')[1:]
@@ -151,7 +163,17 @@ def clean_permission (rootdir):
             os.chmod( i[3], int(i[0], 8) )
             progress_number += 1
         print("Total:", total_amount)
-    pass
+
+    if len(locked_dirs) != 0:
+        print('\033[1;33m==============================================================\033[m')
+        print('\033[1;33mDue to permission problem, these directoies are not processed.\033[m')
+        print('\033[1;33mPlease reset permissions for them by hand.\033[m')
+        print('\033[1;33mSorry for the inconvenience.\033[m')
+        print('')
+        print('\033[1;33mSkiped directories:\033[m')
+        for i in locked_dirs:
+            print('\033[1;33m' + i + '\033[m')
+        print('\033[1;33m==============================================================\033[m')
 
 def parse_rule_format (line):
     match_result = rule_matcher.match(line)
