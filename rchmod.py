@@ -159,7 +159,10 @@ def parse_rule_format (line):
         return match_result.group(1), match_result.group(2), match_result.group(3)
     else:
         if line != "" and line[0] != '#':
-            print('\033[1;33mRule format incorrect:\033[m', line)
+            if sys.stdout.isatty():
+                print('\033[1;33mRule format incorrect:\033[m', line)
+            else:
+                print('Rule format incorrect:', line)
         return None, None, None
 
 def check_and_warn_default_rule (rule_file):
@@ -173,7 +176,8 @@ def check_and_warn_default_rule (rule_file):
         print('\033[1;33m  There may be files that doesn\'t match any rule.\033[m')
         print('\033[1;33m=================================================================\033[m')
         print('Press enter to continue.')
-        raw_input()
+        if sys.stdout.isatty():
+            raw_input()
 
     if '^.*$' not in [i[-1] for i in dir_rules]:
         print('\033[1;33m=================================================================\033[m')
@@ -182,7 +186,8 @@ def check_and_warn_default_rule (rule_file):
         print('\033[1;33m  There may be directories that doesn\'t match any rule.\033[m')
         print('\033[1;33m=================================================================\033[m')
         print('Press enter to continue.')
-        raw_input()
+        if sys.stdout.isatty():
+            raw_input()
 
 def import_rule_file (rule_file):
     global file_rules
@@ -258,8 +263,13 @@ def show_rules ():
     # table head line
     print(table_top_line)
 
-    for i in block_lines[1:]:
-        print('| {} | {} |'.format(i[0], i[1]).replace('^', '\033[1;32m^').replace('$', '$\033[m'))
+    if sys.stdout.isatty():
+        for i in block_lines[1:]:
+            print('| {} | {} |'.format(i[0], i[1]).\
+                replace('^', '\033[1;32m^').replace('$', '$\033[m'))
+    else:
+        for i in block_lines[1:]:
+            print('| {} | {} |'.format(i[0], i[1]))
 
     # table bottom line
     print(table_top_line)
