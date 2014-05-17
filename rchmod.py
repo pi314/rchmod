@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from __future__ import print_function
 import sys
 import os
@@ -52,10 +53,10 @@ def get_file_action (perm, dir_path, file_name):
 
 def ignore_tree (root_dir):
     for dir_path, sd, files in os.walk(root_dir):
-        perm = oct(os.lstat(dir_path).st_mode & 0777).rjust(4, '0')[1:]
+        perm = oct(os.lstat(dir_path).st_mode & 0o777).rjust(4, '0')[1:]
         yield ('ign', 'd', perm, dir_path)
         for f in files:
-            perm = oct(os.lstat(dir_path+'/'+f).st_mode & 0777).rjust(4, '0')[1:]
+            perm = oct(os.lstat(dir_path+'/'+f).st_mode & 0o777).rjust(4, '0')[1:]
             yield ('ign', 'f', perm, dir_path + '/' + f)
 
 def get_ignore_sub_dirs_list (sub_dirs):
@@ -71,7 +72,7 @@ def gen_items (rootdir, verbose=False):
     global locked_dirs
 
     for dir_path, sub_dirs, files in os.walk(rootdir):
-        perm = oct(os.lstat(dir_path).st_mode & 0777).rjust(4, '0')[1:]
+        perm = oct(os.lstat(dir_path).st_mode & 0o777).rjust(4, '0')[1:]
 
         action = get_dir_action(perm, dir_path, sub_dirs, files)
 
@@ -96,7 +97,7 @@ def gen_items (rootdir, verbose=False):
 
             # may have problem to walk
             for i in sub_dirs:
-                perm = oct(os.lstat(dir_path + '/' + i).st_mode & 0777).rjust(4, '0')[1:]
+                perm = oct(os.lstat(dir_path + '/' + i).st_mode & 0o777).rjust(4, '0')[1:]
                 if re.match(r'^.*[0123].*$', perm):
                     locked_dirs.append(
                         '[{perm}] {itemname}'.format(
@@ -104,7 +105,7 @@ def gen_items (rootdir, verbose=False):
                         itemname=dir_path+'/'+i) )
 
             for file_name in files:
-                perm = oct(os.lstat(dir_path + '/' + file_name).st_mode & 0777).rjust(4, '0')[1:]
+                perm = oct(os.lstat(dir_path + '/' + file_name).st_mode & 0o777).rjust(4, '0')[1:]
                 action = get_file_action(perm, dir_path, file_name)
 
                 output = False
