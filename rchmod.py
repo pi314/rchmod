@@ -1,5 +1,4 @@
 from __future__ import print_function
-import argparse
 import sys
 import os
 import re
@@ -119,9 +118,9 @@ def test (rootdir, verbose=True):
         for i in item_list:
             #(action, 'f', perm, file_name)
             if i[0] == 'ign':
-                print( '\033[1;35m[ignore][{}->   ] {}\033[m'.format(i[2], i[3]) )
+                print( '\033[1;35m[ignore][{}     ] {}\033[m'.format(i[2], i[3]) )
             elif i[0] == 'non':
-                print( '\033[1;35m[unknow][{}->   ] {}\033[m'.format(i[2], i[3]) )
+                print( '\033[1;35m[unknow][{}     ] {}\033[m'.format(i[2], i[3]) )
             elif i[0] == i[2]:
                 print( '\033[1;30m[ skip ][{}->{}]\033[m {}'.format(i[2], i[0], i[3]) )
             else:
@@ -130,9 +129,9 @@ def test (rootdir, verbose=True):
     else:
         for i in item_list:
             if i[0] == 'ign':
-                print( '[ignore][{}->   ] {}'.format(i[2], i[3]) )
+                print( '[ignore][{}     ] {}'.format(i[2], i[3]) )
             if i[0] == 'non':
-                print( '[unknow][{}->   ] {}'.format(i[2], i[3]) )
+                print( '[unknow][{}     ] {}'.format(i[2], i[3]) )
             elif i[0] == i[2]:
                 print( '[ skip ][{}->{}] {}'.format(i[2], i[0], i[3]) )
             else:
@@ -304,66 +303,106 @@ def show_rules ():
     for i in dir_rules:
         print( '{} {} {}'.format(i[0], i[1], i[2]) )
 
-def main ():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('rootdir',
-                        help='The root directory of processing',
-                        nargs='?')
-
-    parser.add_argument('--rule', '--rule-file',
-                        help='Import rule file',
-                        )
-
-    parser.add_argument('--show-rules',
-                        help='Show rules and exit',
-                        action='store_true')
-
-    parser.add_argument('--interact',
-                        help='Confirm every files and directories',
-                        action='store_true')
-
-    parser.add_argument('--list-all',
-                        metavar='rootdir',
-                        help='List all items and their actions and exit',
-                        )
-
-    parser.add_argument('--list-match',
-                        metavar='rootdir',
-                        help='List matched items and exit',
-                        )
-
-    parser.add_argument('--no-prograss',
-                        help="Don't calculate total item amount",
-                        action='store_true')
-
-    args = parser.parse_args()
-
-    print(sys.argv)
-    print(args)
-    print('rootdir:',     args.rootdir)
-    print('rule:',        args.rule)
-    print('show_rules:',  args.show_rules)
-    print('interact:',    args.interact)
-    print('list_all:',    args.list_all)
-    print('list_match:',  args.list_match)
-    print('no_prograss:', args.no_prograss)
+def print_help_page_and_exit ():
+    name = sys.argv[0]
+    print('Usage:')
     print('')
+    print('    {name} [-h|--help]'.format(name=name))
+    print('        Show this help message and exit')
+    print('')
+    print('    {name} [--rule RULE_FILE] --show-rules'.format(name=name))
+    print('        Show current rule set and exit')
+    print('        Custom rule set can be applied by --rule option')
+    print('')
+    print('    {name} [--rule RULE_FILE] [--list-all|--list-match] ROOTDIR'.format(name=name))
+    print('        List items and their actions recursively under ROOTDIR')
+    print('        Custom rule set can be applied by --rule option')
+    print('')
+    print('    {name} [OPTIONS] ROOTDIR'.format(name=name))
+    print('        Recursively set permissions under rootdir according the rule set')
+    print('')
+    print('OPTIONS')
+    print('')
+    print('    --rule RULE_FILE        Apply specified rule set')
+    print('    --interact              Confirm every files and directories')
+    print('    --no-prograss           Don\'t calculate total item amount')
+    exit()
 
-    if args.rule:
-        import_rule_file(args.rule)
+def parse_arguments (args):
 
-    if args.list_all:
-        test(args.list_all, verbose=True)
-    elif args.list_match:
-        test(args.list_match, verbose=False)
-    elif args.show_rules:
+    # copy sys.argv without first argument
+    args = list(args[1:])
+
+    result = {}
+
+    # because of unfamiliar with argparser,
+    #  I use my shell script parsing style here
+    try:
+        while (len(args) > 0):
+            first = args[0]
+
+            if first in ['-h', '--help']:
+                result['help'] = True
+
+            elif first in ['--rule', '--rule-file', '--rule_file']:
+                result['rule_file'] = args[1]
+                args = args[1:]
+
+            elif first in ['--show-rules', '--show_rules']:
+                result['show_rules'] = True
+
+            elif first in ['--interact']:
+                result['interact'] = True
+            
+            elif first in ['--list-all']:
+                result['list'] = 'all'
+
+            elif first in ['--list-match']:
+                result['list'] = 'match'
+
+            elif first in ['--no-progress']:
+                result['no_progress'] = True
+
+            else:
+                result['rootdir'] = first
+
+            # pop one argument
+            args = args[1:]
+    except IndexError:
+        print_help_page_and_exit()
+
+    return result
+
+def main ():
+
+    args = parse_arguments(sys.argv)
+
+    if args.get('help'):
+        print_help_page_and_exit()
+
+    if args.get('rule_file'):
+        import_rule_file(args['rule_file'])
+
+    if args.get('show_rules'):
         show_rules()
-    else:
-        if not args.rootdir:
-            print('rootdir is needed')
+
+    elif args.get('list'):
+
+        if args.get('rootdir'):
+            if args.get('list') == 'all':
+                test( args['rootdir'], verbose=True )
+            else:
+                test( args['rootdir'], verbose=False)
+
         else:
-            clean_permission(args.rootdir)
+            print_help_page_and_exit()
+
+    else:
+        if args.get('rootdir'):
+            clean_permission(args.get('rootdir'))
+            pass
+        else:
+            print_help_page_and_exit()
 
 if __name__ == '__main__':
     main()

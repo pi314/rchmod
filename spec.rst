@@ -1,26 +1,32 @@
 Command Line Arguments
 ----------------------
 
-# Output help page and exit
-rchmod [-h|--help]
+Usage:
+    {name} [-h|--help]
 
-rchmod rootdir
+        Show this help message and exit
 
-# Use Rule in rule_file
-rchmod --rule rule_file rootdir
+    {name} [--rule RULE_FILE] --show-rules
 
-# Show rules and exit
-rchmod --show-rules
+        Show current rule set and exit
+        Custom rule set can be applied by --rule option
 
-# Ask for every file and directory
-rchmod [-i|--interact] rootdir
+    {name} [--rule RULE_FILE] [--list-all|--list-match] ROOTDIR
 
-# List the files/directories need to be processed and exit
-rchmod --list-all   rootdir
-rchmod --list-match rootdir
+        List items and their actions recursively under ROOTDIR
+        Custom rule set can be applied by --rule option
 
-# Don't caculate total item amount
-rchmod --no-prograss
+    {name} [OPTIONS] ROOTDIR
+
+        Recursively set permissions under rootdir according the rule set
+
+OPTIONS
+
+    --rule RULE_FILE        Apply specified rule set
+
+    --interact              Confirm every files and directories
+
+    --no-prograss           Don't calculate total item amount
 
 Rule File Format
 ----------------
