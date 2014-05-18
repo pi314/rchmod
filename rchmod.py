@@ -116,54 +116,84 @@ def gen_items (rootdir, verbose=False):
 def test (rootdir, verbose=True):
     item_list = gen_items(rootdir, verbose)
     total_amount = 0
+
     if sys.stdout.isatty():
-        for i in item_list:
-            #(action, 'f', perm, file_name)
-            if i[0] == 'ign':
-                print( '\033[1;35m[ignore][{}     ] {}\033[m'.format(i[2], i[3]) )
-            elif i[0] == 'non':
-                print( '\033[1;35m[unknow][{}     ] {}\033[m'.format(i[2], i[3]) )
-            elif i[0] == i[2]:
-                print( '\033[1;30m[ skip ][{}->{}]\033[m {}'.format(i[2], i[0], i[3]) )
-            else:
-                print( '\033[1;32m[match ][{}->{}]\033[m {}'.format(i[2], i[0], i[3]) )
-            total_amount += 1
+        color_tag_s_i = '\033[1;35m'
+        color_tag_s_s = '\033[1;30m'
+        color_tag_s_m = '\033[1;32m'
+        color_tag_e   = '\033[m'
     else:
-        for i in item_list:
-            if i[0] == 'ign':
-                print( '[ignore][{}     ] {}'.format(i[2], i[3]) )
-            if i[0] == 'non':
-                print( '[unknow][{}     ] {}'.format(i[2], i[3]) )
-            elif i[0] == i[2]:
-                print( '[ skip ][{}->{}] {}'.format(i[2], i[0], i[3]) )
-            else:
-                print( '[match ][{}->{}] {}'.format(i[2], i[0], i[3]) )
-            total_amount += 1
+        color_tag_s_i = ''
+        color_tag_s_s = ''
+        color_tag_s_m = ''
+        color_tag_e   = ''
+
+    for i in item_list:
+        #(action, 'f', perm, file_name)
+        if i[0] == 'ign':
+            print( (color_tag_s_i + '[ignore][{}     ] {}' + color_tag_e).format(i[2], i[3]) )
+
+        elif i[0] == 'non':
+            print( (color_tag_s_i + '[unknow][{}     ] {}' + color_tag_e).format(i[2], i[3]) )
+
+        elif i[0] == i[2]:
+            print( (color_tag_s_s + '[ skip ][{}->{}]' +
+                color_tag_e + ' {}').format(i[2], i[0], i[3]) )
+
+        else:
+            print( (color_tag_s_m + '[match ][{}->{}]' +
+                color_tag_e + ' {}').format(i[2], i[0], i[3]) )
+
+        total_amount += 1
+
     print("Total:", total_amount)
 
-def clean_permission (rootdir):
-    item_list = list( gen_items(rootdir, verbose=False) )
+def clean_permission (rootdir, interact=False, no_progress=False):
 
-    total_amount = len(item_list)
-    progress_number_width = len(str(total_amount))
-    progress_number = 1
+    if no_progress:
+        item_list = gen_items(rootdir, verbose=False)
+    else:
+        item_list = list( gen_items(rootdir, verbose=False) )
+        total_amount = len(item_list)
+        progress_number_width = len(str(total_amount))
 
     if sys.stdout.isatty():
-        for i in item_list:
-            print( '\033[1;32m[{progress:4.0%}][{perm}->{action}]\033[m {itemname}'.format(
-                progress=float(progress_number)/float(total_amount),
-                perm=i[2], action=i[0], itemname=i[3]), end='\r\n')
-            os.chmod( i[3], int(i[0], 8) )
-            progress_number += 1
-        print("Total:", total_amount)
+        color_tag_s = '\033[1;32m'
+        color_tag_e = '\033[m'
     else:
-        for i in item_list:
-            print( '[{progress:4.0%}][{perm}->{action}] {itemname}'.format(
-                progress=float(progress_number)/float(total_amount),
-                perm=i[2], action=i[0], itemname=i[3]), end='\r\n')
+        color_tag_s = ''
+        color_tag_e = ''
+
+    progress_number = 0
+
+
+    for i in item_list:
+
+        print(color_tag_s, end='')
+
+        if not no_progress:
+            print('[{progress:4.0%}]', progress=float(progress_number+1)/float(total_amount))
+
+        print( ('[{perm}->{action}]' +
+            color_tag_e +
+            ' {itemname}').format(perm=i[2], action=i[0], itemname=i[3]), end='\r\n')
+
+        if interact:
+            print('Apply action [Y/n]? ', end='')
+            ans = raw_input().strip().upper()
+            if 'N' in ans:
+                print('Skipped')
+                pass
+            elif 'Y' in ans or ans == '':
+                print('Apply action')
+                os.chmod( i[3], int(i[0], 8) )
+
+        else:
             os.chmod( i[3], int(i[0], 8) )
-            progress_number += 1
-        print("Total:", total_amount)
+
+        progress_number += 1
+
+    print("Total processed:", progress_number)
 
     if len(locked_dirs) != 0:
         print('\033[1;33m==============================================================\033[m')
@@ -391,6 +421,7 @@ def main ():
     elif args.get('list'):
 
         if args.get('rootdir'):
+
             if args.get('list') == 'all':
                 test( args['rootdir'], verbose=True )
             else:
@@ -401,10 +432,16 @@ def main ():
 
     else:
         if args.get('rootdir'):
-            clean_permission(args.get('rootdir'))
-            pass
+            clean_permission(args.get('rootdir'),
+                interact=args.get('interact', False),
+                no_progress=args.get('no_progress', False) )
         else:
             print_help_page_and_exit()
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print('KeyboardInterrupt detected, exit')
+    except:
+        print('An error occured, exit')
