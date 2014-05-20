@@ -396,7 +396,13 @@ def parse_arguments (args):
                 result['no_progress'] = True
 
             else:
-                result['rootdir'] = first
+                if os.path.isabs(first):
+                    result['rootdir'] = first
+                    print('Absolute path:', result['rootdir'])
+                else:
+                    result['rootdir'] = os.path.abspath(first)
+                    print('Relative path:', first)
+                    print('Absolute path:', result['rootdir'])
 
             # pop one argument
             args = args[1:]
