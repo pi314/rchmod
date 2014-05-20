@@ -28,6 +28,8 @@ OPTIONS
 
     --no-prograss           Don't calculate total item amount
 
+    --ignore-error          Keep going when error occurs
+
 Rule File Format
 ----------------
 #comment
