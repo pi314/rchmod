@@ -71,6 +71,22 @@ def get_ignore_sub_dirs_list (sub_dirs):
 def gen_items (rootdir, verbose=False):
     global locked_dirs
 
+    if os.path.isfile(rootdir):
+
+        file_path = rootdir
+
+        dir_path = os.path.dirname(rootdir)
+        file_name = os.path.basename(rootdir)
+
+        perm = oct(os.lstat(file_path).st_mode & 0o777).rjust(4, '0')[1:]
+
+        action = get_file_action(perm, dir_path, file_name)
+
+        if (action != 'ign' and action != perm) or verbose:
+            yield (action, 'f', perm, dir_path + '/' + file_name)
+
+        return
+
     for dir_path, sub_dirs, files in os.walk(rootdir):
         perm = oct(os.lstat(dir_path).st_mode & 0o777).rjust(4, '0')[1:]
 
@@ -172,7 +188,8 @@ def clean_permission (rootdir, interact=False, no_progress=False):
         print(color_tag_s, end='')
 
         if not no_progress:
-            print('[{progress:4.0%}]', progress=float(progress_number+1)/float(total_amount))
+            print('[{progress:4.0%}]'.format(
+                progress=float(progress_number+1)/float(total_amount)), end='')
 
         print( ('[{perm}->{action}]' +
             color_tag_e +
@@ -444,10 +461,19 @@ def main ():
         else:
             print_help_page_and_exit()
 
+def print_error (e):
+    if sys.stdout.isatty():
+        print('\033[1;31m', end='')
+    print(e)
+    if sys.stdout.isatty():
+        print('\033[m', end='')
+    
 if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
         print('KeyboardInterrupt detected, exit')
-    except:
-        print('An error occured, exit')
+    except OSError as e:
+        print_error(e)
+    except Exception as e:
+        print_error(e)
