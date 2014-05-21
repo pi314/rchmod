@@ -164,7 +164,7 @@ def test (rootdir, verbose=True):
 
     print("Total:", total_amount)
 
-def clean_permission (rootdir, interact=False, no_progress=False):
+def clean_permission (rootdir, interact=False, no_progress=False, ignore_error=False):
 
     if no_progress:
         item_list = gen_items(rootdir, verbose=False)
@@ -203,10 +203,22 @@ def clean_permission (rootdir, interact=False, no_progress=False):
                 pass
             elif 'Y' in ans or ans == '':
                 print('Apply action')
-                os.chmod( i[3], int(i[0], 8) )
+                try:
+                    os.chmod( i[3], int(i[0], 8) )
+                except Exception as e:
+                    if ignore_error:
+                        print_warning(e)
+                    else:
+                        raise e
 
         else:
-            os.chmod( i[3], int(i[0], 8) )
+            try:
+                os.chmod( i[3], int(i[0], 8) )
+            except Exception as e:
+                if ignore_error:
+                    print_warning(e)
+                else:
+                    raise e
 
         progress_number += 1
 
@@ -375,6 +387,7 @@ def print_help_page_and_exit ():
     print('    --rule RULE_FILE        Apply specified rule set')
     print('    --interact              Confirm every files and directories')
     print('    --no-prograss           Don\'t calculate total item amount')
+    print('    --ignore-error          Keep going when error occurs')
     exit()
 
 def parse_arguments (args):
@@ -411,6 +424,9 @@ def parse_arguments (args):
 
             elif first in ['--no-progress']:
                 result['no_progress'] = True
+
+            elif first in ['--ignore-error']:
+                result['ignore_error'] = True
 
             else:
                 if os.path.isabs(first):
@@ -457,7 +473,8 @@ def main ():
         if args.get('rootdir'):
             clean_permission(args.get('rootdir'),
                 interact=args.get('interact', False),
-                no_progress=args.get('no_progress', False) )
+                no_progress=args.get('no_progress', False),
+                ignore_error=args.get('ignore_error', False))
         else:
             print_help_page_and_exit()
 
@@ -467,6 +484,14 @@ def print_error (e):
     print(e)
     if sys.stdout.isatty():
         print('\033[m', end='')
+
+def print_warning (e):
+    if sys.stdout.isatty():
+        print('\033[1;33m', end='')
+    print(e, end='')
+    if sys.stdout.isatty():
+        print('\033[m', end='')
+    print(', skip')
     
 if __name__ == '__main__':
     try:
